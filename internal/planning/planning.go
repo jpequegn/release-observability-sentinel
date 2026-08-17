@@ -91,7 +91,7 @@ func (p Planner) Build(release domain.ReleaseEnvelope, mapped mapping.Result) (d
 	if err != nil {
 		return domain.WatchPlan{}, PolicyDecision{}, err
 	}
-	plan := domain.WatchPlan{ID: planID, ReleaseID: release.ID, CreatedAt: release.DeployedAt, Hypotheses: hypotheses, Queries: queries, CheckOffsets: []time.Duration{0, 15 * time.Minute, time.Hour, 2 * time.Hour}, MaxDuration: p.Limits.MaxDuration, MaxQueries: p.Limits.MaxQueries, MaxCost: p.Limits.MaxCost, StopConditions: []string{"unhealthy", "cancelled", "max_duration"}, Owner: release.Owner, PolicyVersion: PolicyVersion, Approval: domain.Approval{State: domain.ApprovalProposed, Version: 1, UpdatedAt: release.DeployedAt}}
+	plan := domain.WatchPlan{ID: planID, ReleaseID: release.ID, CreatedAt: release.DeployedAt, Hypotheses: hypotheses, Queries: queries, CheckOffsets: []time.Duration{0, 15 * time.Minute, 30 * time.Minute, time.Hour, 2 * time.Hour}, MaxDuration: p.Limits.MaxDuration, MaxQueries: p.Limits.MaxQueries, MaxCost: p.Limits.MaxCost, StopConditions: []string{"unhealthy", "cancelled", "max_duration"}, Owner: release.Owner, PolicyVersion: PolicyVersion, Approval: domain.Approval{State: domain.ApprovalProposed, Version: 1, UpdatedAt: release.DeployedAt}}
 	decision := Evaluate(plan, p.Limits)
 	if !decision.Allowed {
 		plan.Approval.State = domain.ApprovalAbstained
