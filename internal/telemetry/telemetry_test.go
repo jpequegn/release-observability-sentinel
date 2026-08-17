@@ -41,8 +41,12 @@ func TestFixtureAdaptersAndGraderCoverHealthStates(t *testing.T) {
 			scenario := scenarioByClass(t, test.class)
 			adapter := FixtureAdapter{Kind: domain.BackendPrometheus, Scenario: scenario}
 			executor := Executor{Adapters: map[domain.Backend]Adapter{domain.BackendPrometheus: adapter}, Now: func() time.Time { return scenario.Release.DeployedAt }}
-			observation := executor.Execute(context.Background(), query(domain.BackendPrometheus), scenario.Release.DeployedAt.Add(time.Minute))
-			verdict := Grade([]domain.Observation{observation}, scenario.Release.DeployedAt.Add(time.Minute))
+			checkAt := scenario.Release.DeployedAt.Add(time.Minute)
+			if scenario.FailureStart > 0 {
+				checkAt = scenario.Release.DeployedAt.Add(scenario.FailureStart)
+			}
+			observation := executor.Execute(context.Background(), query(domain.BackendPrometheus), checkAt)
+			verdict := Grade([]domain.Observation{observation}, checkAt)
 			if verdict.State != test.want {
 				t.Fatalf("state=%s want=%s observation=%#v", verdict.State, test.want, observation)
 			}

@@ -45,6 +45,26 @@ func TestBuildsDeterministicEvidenceLinkedPlan(t *testing.T) {
 	}
 }
 
+func TestBuildPrioritizesDirectServiceAndCapsExpandedQueries(t *testing.T) {
+	data := corpus.Load()
+	scenario := data.Scenarios[5]
+	packets := []mapping.ContextPacket{}
+	for _, service := range data.Services {
+		packets = append(packets, mapping.ContextPacket{Service: service.ID, QuestionTime: scenario.Release.DeployedAt, State: "current", Facts: []mapping.ContextFact{{FactID: "fact-" + service.ID, Service: service.ID, Predicate: "uses_metric", Value: service.Signals[domain.BackendPrometheus][0], State: "current", RecordedAt: scenario.Release.DeployedAt.Add(-time.Minute), ValidFrom: service.RecordedAt, Source: service.Evidence}}})
+	}
+	mapped, err := mapping.New(data.Services, nil).Map(context.Background(), scenario.Release, packets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, decision, err := New(DefaultLimits()).Build(scenario.Release, mapped)
+	if err != nil || !decision.Allowed {
+		t.Fatalf("decision=%#v err=%v", decision, err)
+	}
+	if len(plan.Queries) != DefaultLimits().MaxQueries || plan.Queries[0].Service != "notifications" {
+		t.Fatalf("queries=%d first=%s", len(plan.Queries), plan.Queries[0].Service)
+	}
+}
+
 func TestMissingContextFailsClosed(t *testing.T) {
 	release, mapped := mappedRelease(t, false)
 	plan, decision, err := New(DefaultLimits()).Build(release, mapped)
