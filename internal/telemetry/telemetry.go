@@ -52,7 +52,7 @@ func (a FixtureAdapter) Query(ctx context.Context, query domain.QuerySpec, windo
 	}
 	offset := windowEnd.Sub(a.Scenario.Release.DeployedAt)
 	active := failureActive(a.Scenario, offset)
-	ambiguous := a.Scenario.Class == "ambiguous" || (a.Scenario.Class == "intermittent" && active)
+	ambiguous := (a.Scenario.Class == "ambiguous" || a.Scenario.Class == "intermittent") && active
 	switch a.Kind {
 	case domain.BackendPrometheus:
 		if ambiguous {

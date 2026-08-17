@@ -49,9 +49,20 @@ func (p Planner) Build(release domain.ReleaseEnvelope, mapped mapping.Result) (d
 	if mapped.ReleaseID != release.ID {
 		return domain.WatchPlan{}, PolicyDecision{}, errors.New("mapping release ID does not match release")
 	}
-	hypotheses := make([]domain.FailureHypothesis, 0, len(mapped.Services))
+	services := append([]mapping.MappedService(nil), mapped.Services...)
+	directService := release.Repository[strings.LastIndex(release.Repository, "/")+1:]
+	sort.SliceStable(services, func(i, j int) bool {
+		if services[i].Service.ID == directService {
+			return true
+		}
+		if services[j].Service.ID == directService {
+			return false
+		}
+		return services[i].Service.ID < services[j].Service.ID
+	})
+	hypotheses := make([]domain.FailureHypothesis, 0, len(services))
 	queries := []domain.QuerySpec{}
-	for _, item := range mapped.Services {
+	for _, item := range services {
 		hypothesisID, err := domain.StableID("hyp", struct {
 			Release string
 			Service string
@@ -63,6 +74,9 @@ func (p Planner) Build(release domain.ReleaseEnvelope, mapped mapping.Result) (d
 		hypothesis := domain.FailureHypothesis{ID: hypothesisID, Service: item.Service.ID, Statement: fmt.Sprintf("Release %s may degrade %s because %s", release.ID, item.Service.ID, strings.Join(item.Reasons, "; ")), ExpectedHealthy: item.Service.SLO, FailureMode: "release-correlated SLO or error regression", ReleaseEvidence: append([]domain.EvidenceRef(nil), item.ReleaseEvidence...), ContextEvidence: append([]domain.EvidenceRef(nil), item.ContextEvidence...), MissingContext: append([]string(nil), item.MissingContext...), ConfidenceBasis: "deterministic path, dependency, and context mapping"}
 		hypotheses = append(hypotheses, hypothesis)
 		for _, backend := range []domain.Backend{domain.BackendPrometheus, domain.BackendTempo, domain.BackendLoki} {
+			if len(queries) >= p.Limits.MaxQueries {
+				break
+			}
 			signals := item.Signals[backend]
 			if len(signals) == 0 {
 				continue
